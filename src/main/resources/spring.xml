@@ -16,8 +16,7 @@
 		base-package="com.youhl.zhihu.service.impl,com.youhl.zhihu.dao.impl" />
 
 	<!-- 配置httpClient -->
-
-	<bean id="httpClient" class="com.youhl.zhihu.utils.HttpUtils"
+	<bean id="httpClient" class="org.apache.http.impl.client.HttpClients"
 		factory-method="createDefault">
 	</bean>
 
