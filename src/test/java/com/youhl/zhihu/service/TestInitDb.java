@@ -33,7 +33,7 @@ public class TestInitDb extends ApplicationObjectSupport {
       bean.deleteAll();
     }
     // 创建用户
-    loginUserService.save(new LoginUser("906669319@qq.com", "qazwsx"));
+    loginUserService.save(new LoginUser("906669319@qq.com", "xxxxxx"));
     // 创建种子
     seedUrlService.save(new SeedUrl("http://www.zhihu.com/people/hailang-you"));
     // 创建规则
