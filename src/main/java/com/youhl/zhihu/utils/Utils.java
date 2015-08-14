@@ -90,7 +90,8 @@ public class Utils {
     return null;
   }
 
-  public static <T extends Object> T coalesce(T... objs) {
+  @SuppressWarnings("unchecked")
+  public static <T> T coalesce(T... objs) {
     if (objs == null) {
       return null;
     }
