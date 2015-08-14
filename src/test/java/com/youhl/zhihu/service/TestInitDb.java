@@ -34,7 +34,7 @@ public class TestInitDb extends ApplicationObjectSupport {
 
     Map<String, GenericDao> beans = getApplicationContext().getBeansOfType(GenericDao.class);
     for (GenericDao bean : beans.values()) {
-      bean.deleteAll();
+//      bean.deleteAll();
     }
     // 创建用户
     loginUserService.save(new LoginUser("906669319@qq.com", "qazwsx"));
