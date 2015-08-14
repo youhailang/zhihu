@@ -17,7 +17,7 @@
 
 	<!-- 配置httpClient -->
 
-	<bean id="httpClient" class="org.apache.http.impl.client.HttpClients"
+	<bean id="httpClient" class="com.youhl.zhihu.utils.HttpUtils"
 		factory-method="createDefault">
 	</bean>
 
