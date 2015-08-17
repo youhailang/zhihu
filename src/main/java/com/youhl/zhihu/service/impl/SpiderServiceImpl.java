@@ -31,7 +31,7 @@ import com.youhl.zhihu.utils.Utils;
 @Service("spiderService")
 public class SpiderServiceImpl extends ApplicationObjectSupport implements SpiderService {
   private static final Logger LOGGER = Logger.getLogger(SpiderServiceImpl.class);
-
+  private static final int THREADS = 50;
   private static int step = 0;
   private static int submitPages = 0;
   private static int donePages = 0;
@@ -53,7 +53,7 @@ public class SpiderServiceImpl extends ApplicationObjectSupport implements Spide
       ThreadFactory threadFactory =
           new ThreadFactoryBuilder().setNameFormat("Cycle[" + step + "]-%d").setDaemon(true)
               .build();
-      ExecutorService pool = Executors.newFixedThreadPool(10, threadFactory);
+      ExecutorService pool = Executors.newFixedThreadPool(THREADS, threadFactory);
       donePages = 0;
       for (Entry<String, SeedUrl> entry : seedUrlService.getValidSeedUrl().entrySet()) {
         pool.execute(new MyThread(entry.getKey(), entry.getValue()));

@@ -14,7 +14,7 @@ public class TestSpider {
 
   @Test
   public void start() {
-    spiderService.start(-1, 10);
+    spiderService.start(-1, -1);
   }
 
 }

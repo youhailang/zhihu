@@ -47,7 +47,7 @@ public class SeedUrlServiceImpl extends BaseServiceImpl<SeedUrl, Long> implement
       if (seedUrl.getRegexUrl() != null) {
         seedUrlDao.save(seedUrl);
         penddingSeedUrls.put(href, seedUrl);
-        info("addSeed:" + url);
+        info("addSeed:" + href);
       }
     }
   }
