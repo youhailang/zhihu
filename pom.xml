@@ -213,7 +213,7 @@
 			<artifactId>jai_imageio</artifactId>
 			<version>1.1</version>
 			<scope>system</scope>
-			<systemPath>${basedir}/src/main/resources/lib/jai_imageio-1.1.jar</systemPath>
+			<systemPath>${basedir}/src/main/webapp/WEB-INF/lib/jai_imageio-1.1.jar</systemPath>
 		</dependency>
 
 	</dependencies>
