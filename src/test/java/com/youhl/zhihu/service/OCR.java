@@ -12,6 +12,7 @@ import org.apache.commons.lang.StringUtils;
 
 public class OCR {
   private final String LANG_OPTION = "-l"; // 英文字母小写l，并非数字1
+
   private final String EOL = System.getProperty("line.separator");
 
   private String getTesseract() {
@@ -27,22 +28,29 @@ public class OCR {
     return tesseract.getPath();
   }
 
-  public String recognizeText(File imageFile, String imageFormat) throws Exception {
-    File tempImage = ImageIOHelper.createImage(imageFile, imageFormat);
-    File outputFile = new File(imageFile.getParentFile(), "output");
+  public String recognizeText(File imageFile, String imageFormat, String lang, String others)
+      throws Exception {
+    File tmpImage = ImageIOHelper.createImage(imageFile, imageFormat);
+    File tmpOutput =
+        new File(imageFile.getParentFile(), StringUtils.substringBeforeLast(imageFile.getName(),
+            "."));
     StringBuffer strB = new StringBuffer();
     List<String> cmd = new ArrayList<String>();
-    cmd.add("\""+getTesseract()+"\"");
+    cmd.add("\"" + getTesseract() + "\"");
     cmd.add("");
-    cmd.add(outputFile.getName());
+    cmd.add(tmpOutput.getName());
     cmd.add(LANG_OPTION);
-    cmd.add("chi_sim");
-    cmd.add("eng");
-
+    // chi_sim eng
+    for (String l : lang.split("\\s+")) {
+      cmd.add(l);
+    }
+    if (!StringUtils.isEmpty(others)) {
+      cmd.add(others);
+    }
     ProcessBuilder pb = new ProcessBuilder();
     pb.directory(imageFile.getParentFile());
 
-    cmd.set(1, tempImage.getName());
+    cmd.set(1, tmpImage.getName());
     pb.command(cmd);
     pb.redirectErrorStream(true);
     System.out.println("cmd:" + StringUtils.join(cmd, " "));
@@ -51,13 +59,12 @@ public class OCR {
     int w = process.waitFor();
 
     // 删除临时正在工作文件
-    // tempImage.delete();
+    // tmpImage.delete();
 
     if (w == 0) {
       BufferedReader in =
-          new BufferedReader(new InputStreamReader(new FileInputStream(outputFile.getAbsolutePath()
+          new BufferedReader(new InputStreamReader(new FileInputStream(tmpOutput.getAbsolutePath()
               + ".txt"), "UTF-8"));
-
       String str;
       while ((str = in.readLine()) != null) {
         strB.append(str).append(EOL);
@@ -78,10 +85,9 @@ public class OCR {
         default:
           msg = "Errors occurred.";
       }
-      tempImage.delete();
+      tmpImage.delete();
       throw new RuntimeException(msg);
     }
-    // new File(outputFile.getAbsolutePath() + ".txt").delete();
     return strB.toString();
   }
 
