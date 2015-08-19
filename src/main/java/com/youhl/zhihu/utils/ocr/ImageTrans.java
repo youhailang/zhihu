@@ -1,10 +1,21 @@
 package com.youhl.zhihu.utils.ocr;
 
+import java.awt.Color;
+import java.awt.Image;
+import java.awt.Toolkit;
+import java.awt.color.ColorSpace;
+import java.awt.geom.AffineTransform;
+import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorConvertOp;
+import java.awt.image.ColorModel;
 import java.awt.image.ConvolveOp;
 import java.awt.image.Kernel;
+import java.awt.image.MemoryImageSource;
+import java.awt.image.PixelGrabber;
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -30,19 +41,42 @@ public class ImageTrans {
   private File tiff;
 
   public ImageTrans(File srcFile) throws IOException {
-    String suffix = StringUtils.substringAfterLast(srcFile.getName(), ".");
-    String format = "jpg";
-    if (suffix != null && !suffix.isEmpty()) {
-      format = suffix;
-    }
-    this.format = format;
-    dstFiles.add(srcFile);
+    this(srcFile, null);
   }
 
   public ImageTrans(File srcFile, String format) throws IOException {
     super();
+    if (format == null) {
+      this.format = StringUtils.defaultIfEmpty(getFormatByFile(srcFile), "jpg");
+    } else {
+      this.format = format;
+    }
+    dstFiles.add(srcFile);
+  }
+
+  public static String getFormatByFile(File srcFile) {
+    String suffix = StringUtils.substringAfterLast(srcFile.getName(), ".");
+    String format = null;
+    if (suffix != null && !suffix.isEmpty()) {
+      format = suffix;
+    }
+    return format;
+  }
+
+  public ImageTrans reload() {
+    return reload(getSrcFile(), getFormat());
+  }
+
+  public ImageTrans reload(File srcFile) {
+    return reload(srcFile, StringUtils.defaultIfEmpty(getFormatByFile(srcFile), "jpg"));
+  }
+
+  public ImageTrans reload(File srcFile, String format) {
+    dstFiles.clear();
+    tiff = null;
     this.format = format;
     dstFiles.add(srcFile);
+    return this;
   }
 
   public void cleanFiles() {
@@ -57,6 +91,13 @@ public class ImageTrans {
 
   public File getSrcFile() {
     return dstFiles.get(0);
+  }
+
+  public ImageTrans grey() throws IOException {
+    BufferedImage srcImage = ImageIO.read(getLastFile());
+    ColorConvertOp ccp = new ColorConvertOp(ColorSpace.getInstance(ColorSpace.CS_GRAY), null);
+    ImageIO.write(ccp.filter(srcImage, null), format, createDstFile());
+    return this;
   }
 
   // 灰度化
@@ -94,28 +135,270 @@ public class ImageTrans {
   // 钝化
   public ImageTrans dlur() throws IOException {
     BufferedImage srcImage = ImageIO.read(getLastFile());
-    int width = srcImage.getWidth();
-    int height = srcImage.getHeight();
-    BufferedImage dstImage = new BufferedImage(width, height, BufferedImage.TYPE_3BYTE_BGR);
     float[] data = {0.0625f, 0.125f, 0.0625f, 0.125f, 0.125f, 0.125f, 0.0625f, 0.125f, 0.0625f};
-    Kernel kernel = new Kernel(3, 3, data);
-    ConvolveOp co = new ConvolveOp(kernel, ConvolveOp.EDGE_NO_OP, null);
-    co.filter(srcImage, dstImage);
-    ImageIO.write(dstImage, format, createDstFile());
+    ConvolveOp cop = new ConvolveOp(new Kernel(3, 3, data));
+    ImageIO.write(cop.filter(srcImage, null), format, createDstFile());
+    return this;
+  }
+
+  // Blur by "convolving" the image with a matrix
+  public ImageTrans blur() throws IOException {
+    BufferedImage srcImage = ImageIO.read(getLastFile());
+    float[] data = {.1111f, .1111f, .1111f, .1111f, .1111f, .1111f, .1111f, .1111f, .1111f,};
+    ConvolveOp cop = new ConvolveOp(new Kernel(3, 3, data));
+    ImageIO.write(cop.filter(srcImage, null), format, createDstFile());
     return this;
   }
 
   // 锐化
   public ImageTrans sharper() throws IOException {
     BufferedImage srcImage = ImageIO.read(getLastFile());
-    int width = srcImage.getWidth();
-    int height = srcImage.getHeight();
-    BufferedImage dstImage = new BufferedImage(width, height, BufferedImage.TYPE_3BYTE_BGR);
     float[] data = {-1.0f, -1.0f, -1.0f, -1.0f, 10.0f, -1.0f, -1.0f, -1.0f, -1.0f};
-    Kernel kernel = new Kernel(3, 3, data);
-    ConvolveOp co = new ConvolveOp(kernel, ConvolveOp.EDGE_NO_OP, null);
-    co.filter(srcImage, dstImage);
-    ImageIO.write(dstImage, format, createDstFile());
+    ConvolveOp cop = new ConvolveOp(new Kernel(3, 3, data));
+    ImageIO.write(cop.filter(srcImage, null), format, createDstFile());
+    return this;
+  }
+
+  // Sharpen by using a different matrix
+  public ImageTrans sharpen() throws IOException {
+    BufferedImage srcImage = ImageIO.read(getLastFile());
+    float[] data = {0.0f, -0.75f, 0.0f, -0.75f, 4.0f, -0.75f, 0.0f, -0.75f, 0.0f};
+    ConvolveOp cop = new ConvolveOp(new Kernel(3, 3, data));
+    ImageIO.write(cop.filter(srcImage, null), format, createDstFile());
+    return this;
+  }
+
+
+  // 11) Rotate the image 180 degrees about its center point
+  public ImageTrans rotate() throws IOException {
+    BufferedImage srcImage = ImageIO.read(getLastFile());
+    AffineTransformOp atop =
+        new AffineTransformOp(AffineTransform.getRotateInstance(Math.PI, srcImage.getWidth() / 2,
+            srcImage.getHeight() / 2), AffineTransformOp.TYPE_NEAREST_NEIGHBOR);
+    ImageIO.write(atop.filter(srcImage, null), format, createDstFile());
+    return this;
+  }
+
+  // 均值去噪
+  public ImageTrans avg() throws IOException {
+    BufferedImage image = ImageIO.read(getLastFile());
+    int iw = image.getWidth();
+    int ih = image.getHeight();
+    int[] srcPixels = new int[iw * ih];
+    PixelGrabber pg = new PixelGrabber(image.getSource(), 0, 0, iw, ih, srcPixels, 0, iw);
+    try {
+      pg.grabPixels();
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
+    int[] dstPixels = Arrays.copyOfRange(srcPixels, 0, srcPixels.length);
+    int[] bounds = new int[] {1, 1, 1, 1};
+    for (int i = bounds[0]; i < ih - bounds[1]; i++) {
+      for (int j = bounds[2]; j < iw - bounds[3]; j++) {
+        dstPixels[i * iw + j] = avg(srcPixels, i, j, iw, ih, bounds);
+      }
+    }
+    // 将数组中的象素产生一个图像
+    Image tempImg =
+        Toolkit.getDefaultToolkit().createImage(new MemoryImageSource(iw, ih, dstPixels, 0, iw));
+    image =
+        new BufferedImage(tempImg.getWidth(null), tempImg.getHeight(null),
+            BufferedImage.TYPE_INT_BGR);
+    image.createGraphics().drawImage(tempImg, 0, 0, null);
+    ImageIO.write(image, format, createDstFile());
+    return this;
+  }
+
+  private int avg(int[] pixels, int i, int j, int iw, int ih, int[] bounds) {
+    ColorModel cm = ColorModel.getRGBdefault();
+    int alpha = cm.getAlpha(pixels[i * iw + j]);
+    int red = 0, green = 0, blue = 0;
+    for (int m = i - bounds[0]; m <= i + bounds[1]; m++) {
+      for (int n = j - bounds[2]; n <= j + bounds[3]; n++) {
+        int rgb = pixels[m * iw + n];
+        red += cm.getRed(rgb);
+        green += cm.getGreen(rgb);
+        blue += cm.getBlue(rgb);
+      }
+    }
+    red /= 9;
+    green /= 9;
+    blue /= 9;
+    return alpha << 24 | red << 16 | green << 8 | blue;
+  }
+
+  // 中心去噪
+  public ImageTrans median0() throws IOException {
+    BufferedImage image = ImageIO.read(getLastFile());
+    int iw = image.getWidth();
+    int ih = image.getHeight();
+    int[] srcPixels = new int[iw * ih];
+    PixelGrabber pg = new PixelGrabber(image.getSource(), 0, 0, iw, ih, srcPixels, 0, iw);
+    try {
+      pg.grabPixels();
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
+    int[] dstPixels = Arrays.copyOfRange(srcPixels, 0, srcPixels.length);
+    int[] bounds = new int[] {0, 0, 1, 1};
+    for (int i = bounds[0]; i < ih - bounds[1]; i++) {
+      for (int j = bounds[2]; j < iw - bounds[3]; j++) {
+        dstPixels[i * iw + j] = median0(srcPixels, i, j, iw, ih, bounds);
+      }
+    }
+    // 将数组中的象素产生一个图像
+    Image tempImg =
+        Toolkit.getDefaultToolkit().createImage(new MemoryImageSource(iw, ih, dstPixels, 0, iw));
+    image =
+        new BufferedImage(tempImg.getWidth(null), tempImg.getHeight(null),
+            BufferedImage.TYPE_INT_BGR);
+    image.createGraphics().drawImage(tempImg, 0, 0, null);
+    ImageIO.write(image, format, createDstFile());
+    return this;
+  }
+
+  private int median0(int[] pixels, int i, int j, int iw, int ih, int[] bounds) {
+    ColorModel cm = ColorModel.getRGBdefault();
+    int alpha = cm.getAlpha(pixels[i * iw + j]);
+    int length = (1 + bounds[0] + bounds[1]) * (1 + bounds[2] + bounds[3]);
+    int[] reds = new int[length];
+    int[] greens = new int[length];
+    int[] blues = new int[length];
+    int red = 0, green = 0, blue = 0;
+    int index = 0;
+    for (int m = i - bounds[0]; m <= i + bounds[1]; m++) {
+      for (int n = j - bounds[2]; n <= j + bounds[3]; n++) {
+        int rgb = pixels[m * iw + n];
+        reds[index] = cm.getRed(rgb);
+        greens[index] = cm.getGreen(rgb);
+        blues[index] = cm.getBlue(rgb);
+        index++;
+      }
+    }
+    Arrays.sort(reds);
+    Arrays.sort(greens);
+    Arrays.sort(blues);
+    red = reds[(reds.length+1) / 2];
+    green = greens[(greens.length+1)  / 2];
+    blue = blues[(blues.length+1)  / 2];
+    return alpha << 24 | red << 16 | green << 8 | blue;
+  }
+
+  // 中值去噪
+  public ImageTrans median() throws IOException {
+    BufferedImage image = ImageIO.read(getLastFile());
+    int iw = image.getWidth();
+    int ih = image.getHeight();
+    int[] pixels = new int[iw * ih];
+    PixelGrabber pg = new PixelGrabber(image.getSource(), 0, 0, iw, ih, pixels, 0, iw);
+    try {
+      pg.grabPixels();
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
+    // 对图像进行中值滤波，Alpha值保持不变
+    ColorModel cm = ColorModel.getRGBdefault();
+    for (int i = 1; i < ih - 1; i++) {
+      for (int j = 1; j < iw - 1; j++) {
+        int red, green, blue;
+        int alpha = cm.getAlpha(pixels[i * iw + j]);
+
+        // int red2 = cm.getRed(pixels[(i - 1) * iw + j]);
+        int red4 = cm.getRed(pixels[i * iw + j - 1]);
+        int red5 = cm.getRed(pixels[i * iw + j]);
+        int red6 = cm.getRed(pixels[i * iw + j + 1]);
+        // int red8 = cm.getRed(pixels[(i + 1) * iw + j]);
+
+        // 水平方向进行中值滤波
+        if (red4 >= red5) {
+          if (red5 >= red6) {
+            red = red5;
+          } else {
+            if (red4 >= red6) {
+              red = red6;
+            } else {
+              red = red4;
+            }
+          }
+        } else {
+          if (red4 > red6) {
+            red = red4;
+          } else {
+            if (red5 > red6) {
+              red = red6;
+            } else {
+              red = red5;
+            }
+          }
+        }
+
+        int green4 = cm.getGreen(pixels[i * iw + j - 1]);
+        int green5 = cm.getGreen(pixels[i * iw + j]);
+        int green6 = cm.getGreen(pixels[i * iw + j + 1]);
+
+        // 水平方向进行中值滤波
+        if (green4 >= green5) {
+          if (green5 >= green6) {
+            green = green5;
+          } else {
+            if (green4 >= green6) {
+              green = green6;
+            } else {
+              green = green4;
+            }
+          }
+        } else {
+          if (green4 > green6) {
+            green = green4;
+          } else {
+            if (green5 > green6) {
+              green = green6;
+            } else {
+              green = green5;
+            }
+          }
+        }
+
+        // int blue2 = cm.getBlue(pixels[(i - 1) * iw + j]);
+        int blue4 = cm.getBlue(pixels[i * iw + j - 1]);
+        int blue5 = cm.getBlue(pixels[i * iw + j]);
+        int blue6 = cm.getBlue(pixels[i * iw + j + 1]);
+        // int blue8 = cm.getBlue(pixels[(i + 1) * iw + j]);
+
+        // 水平方向进行中值滤波
+        if (blue4 >= blue5) {
+          if (blue5 >= blue6) {
+            blue = blue5;
+          } else {
+            if (blue4 >= blue6) {
+              blue = blue6;
+            } else {
+              blue = blue4;
+            }
+          }
+        } else {
+          if (blue4 > blue6) {
+            blue = blue4;
+          } else {
+            if (blue5 > blue6) {
+              blue = blue6;
+            } else {
+              blue = blue5;
+            }
+          }
+        }
+        pixels[i * iw + j] = alpha << 24 | red << 16 | green << 8 | blue;
+      }
+    }
+
+    // 将数组中的象素产生一个图像
+    Image tempImg =
+        Toolkit.getDefaultToolkit().createImage(new MemoryImageSource(iw, ih, pixels, 0, iw));
+    image =
+        new BufferedImage(tempImg.getWidth(null), tempImg.getHeight(null),
+            BufferedImage.TYPE_INT_BGR);
+    image.createGraphics().drawImage(tempImg, 0, 0, null);
+    ImageIO.write(image, format, createDstFile());
     return this;
   }
 
@@ -261,7 +544,19 @@ public class ImageTrans {
 
   }
 
+  public String getFormat() {
+    return format;
+  }
+
   public File getTiff() {
     return tiff;
+  }
+
+  public static boolean isBlack(int rgb) {
+    Color color = new Color(rgb);
+    if (color.getRed() + color.getGreen() + color.getBlue() <= 300) {
+      return true;
+    }
+    return false;
   }
 }

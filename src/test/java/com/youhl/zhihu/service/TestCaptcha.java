@@ -31,7 +31,6 @@ public class TestCaptcha {
       HttpEntity entity = response.getEntity();
       if (entity != null) {
         IOUtils.copy(entity.getContent(), new FileOutputStream(file));
-        File tiff = ImageIOHelper.createImage(file, "gif");
       }
     }
   }
