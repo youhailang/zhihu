@@ -15,7 +15,7 @@ import javax.imageio.metadata.IIOMetadata;
 import javax.imageio.stream.ImageInputStream;
 import javax.imageio.stream.ImageOutputStream;
 
-import com.sun.media.imageio.plugins.tiff.TIFFImageWriteParam;  
+import com.sun.media.imageio.plugins.tiff.TIFFImageWriteParam;
 
 public class ImageIOHelper {
   /**
@@ -63,9 +63,15 @@ public class ImageIOHelper {
 
   private static File tempImageFile(File imageFile) {
     String path = imageFile.getPath();
-    StringBuffer strB = new StringBuffer(path);
-    strB.insert(path.lastIndexOf('.'), 0);
-    return new File(strB.toString().replaceFirst("(?<=//.)(//w+)$", "tif"));
+    int index = path.lastIndexOf('.');
+    StringBuffer sb = new StringBuffer();
+    if (index > 0) {
+      sb.append(path.substring(0, index)).append(".tif");
+    }else{
+      sb.append(path).append(".tif");
+    }
+    File file = new File(sb.toString());
+    System.out.println(file.getPath());
+    return file;
   }
-
 }
