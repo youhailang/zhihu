@@ -17,7 +17,7 @@ import com.youhl.zhihu.entity.BaseEntity;
 @SuppressWarnings("unchecked")
 public abstract class BaseDaoImpl<T, PK extends Serializable> implements GenericDao<T, PK> {
   @Autowired
-  private SessionFactory sessionFactory;
+  protected SessionFactory sessionFactory;
 
   protected Session getCurrentSession() {
     return this.sessionFactory.getCurrentSession();
