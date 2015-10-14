@@ -2,6 +2,7 @@ package com.youhl.zhihu.dao.impl;
 
 import java.util.List;
 
+import org.hibernate.criterion.Restrictions;
 import org.springframework.stereotype.Repository;
 
 import com.youhl.zhihu.dao.RegexUrlDao;
