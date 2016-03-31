@@ -7,4 +7,5 @@ import com.youhl.zhihu.entity.LoginUser;
 
 @Repository("loginUserDao")
 public class LoginUserDaoImpl extends BaseDaoImpl<LoginUser, String> implements LoginUserDao {
+  
 }
